@@ -10,6 +10,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import dates
 import datetime, time
+import argparse
 
 # plot style defs
 plot_markers = ('.','o','v','^','<','>','1','2','3','4','8','s','p','*','+','x')
@@ -39,13 +40,31 @@ def GetFactorStr(factor):
 # main entry
 if __name__ == '__main__':
     # arg: log directory
-    if len(sys.argv) < 4:
-        print "Usage:", sys.argv[0], "<CSV1> <CSV2> <Column Name>"
-        sys.exit()
+    parser = argparse.ArgumentParser(description='Parse and plot comparison figure of sensor logs.')
+    parser.add_argument('-a', action='store_true', default=False, help='Align the time axis')
+    parser.add_argument('-s1', default=0, type=int, help='time shift of first CSV (minutes)')
+    parser.add_argument('-s2', default=0, type=int, help='time shift of second CSV (minutes)')
+    parser.add_argument('csv1', action='store', help = 'CSV file name 1')
+    parser.add_argument('csv2', action='store', help = 'CSV file name 2')
+    parser.add_argument('column_list', nargs='+', help = 'List of column to be plotted')
     
-    csv1 = sys.argv[1]
-    csv2 = sys.argv[2]
-    colList = [i for i in sys.argv[3:]]
+    args = parser.parse_args()
+    #print args
+    csv1 = args.csv1
+    csv2 = args.csv2
+    colList = args.column_list
+    tShift1 = args.s1
+    tShift2 = args.s2
+    tAlign = args.a
+    # Set time shift
+    if tShift1 or tShift2:
+        tAlign = False
+        tShift1 = float(tShift1) / (24 * 60) # minute
+        tShift2 = float(tShift2) / (24 * 60) # minute
+        print 'Shift time axis, ignore align setting'
+    
+    if tAlign:
+        print 'Time will be aligned to', csv2
     
     hdr1, csvList1 = ReadCSV(csv1)
     hdr2, csvList2 = ReadCSV(csv2)
@@ -80,7 +99,7 @@ if __name__ == '__main__':
         dateList.append(datetime.datetime.strptime(l[0], "%Y-%m-%d %H:%M:%S"))
         arrList.append(tmpList)
     arr1 = np.asarray(arrList)
-    fds1 = dates.date2num(dateList)
+    fds1 = dates.date2num(dateList) + tShift1
     
     arrList = []
     dateList = []
@@ -89,7 +108,11 @@ if __name__ == '__main__':
         dateList.append(datetime.datetime.strptime(l[0], "%Y-%m-%d %H:%M:%S"))
         arrList.append(tmpList)
     arr2 = np.asarray(arrList)
-    fds2 = dates.date2num(dateList)
+    fds2 = dates.date2num(dateList) + tShift2
+    
+    if (tAlign):
+        dt = fds2[0] - fds1[0]
+        fds1 += dt
 
     # matplotlib date format object
     hfmt = dates.DateFormatter('%m/%d %H:%M')
@@ -170,5 +193,6 @@ if __name__ == '__main__':
     figName += os.path.splitext(os.path.basename(csv2))[0]
     figName += '.jpg'
     plt.savefig(figName, dpi=100)
+    print 'Figure written to', figName
 
 
